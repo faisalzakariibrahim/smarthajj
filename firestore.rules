@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (matches auth.uid)
+    // Fields:
+    //   - uid: string (required)
+    //   - fullName: string (required)
+    //   - phoneNumber: string (required)
+    //   - nationality: string
+    //   - passportNumber: string
+    //   - passportUrl: string
+    //   - updatedAt: string
+    //
+    // Collection: emergency_alerts
+    // Document ID: {alertId}
+    // Fields:
+    //   - userId: string (required)
+    //   - timestamp: string (required)
+    //   - location: map (latitude: number, longitude: number)
+    //   - status: string (pending, resolved)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidUser(data) {
+      let allowedFields = ['uid', 'fullName', 'phoneNumber', 'nationality', 'passportNumber', 'passportUrl', 'language', 'prayerSettings', 'updatedAt', 'role'];
+      return data.keys().hasOnly(allowedFields) &&
+             data.keys().hasAll(['uid', 'fullName', 'phoneNumber']) &&
+             data.uid is string &&
+             data.fullName is string && data.fullName.size() > 0 && data.fullName.size() < 100 &&
+             data.phoneNumber is string && data.phoneNumber.size() < 30 &&
+             (!('nationality' in data) || (data.nationality is string && data.nationality.size() < 100)) &&
+             (!('passportNumber' in data) || (data.passportNumber is string && data.passportNumber.size() < 50)) &&
+             (!('passportUrl' in data) || (data.passportUrl is string && data.passportUrl.size() < 1000)) &&
+             (!('language' in data) || (data.language in ['en', 'ha', 'tw', 'ar', 'fr'])) &&
+             (!('prayerSettings' in data) || (data.prayerSettings is map)) &&
+             (!('updatedAt' in data) || (data.updatedAt is string));
+    }
+
+    function isValidAlert(data) {
+      let allowedFields = ['userId', 'timestamp', 'location', 'status', 'serverTimestamp'];
+      let allowedLocationFields = ['latitude', 'longitude', 'accuracy', 'altitude', 'altitudeAccuracy', 'heading', 'speed'];
+      return data.keys().hasOnly(allowedFields) &&
+             data.keys().hasAll(['userId', 'timestamp', 'status']) &&
+             data.userId == request.auth.uid &&
+             data.timestamp is string &&
+             data.status in ['pending', 'resolved'] &&
+             (!('location' in data) || data.location == null || (
+               data.location is map && 
+               data.location.keys().hasAll(['latitude', 'longitude']) &&
+               data.location.keys().hasOnly(allowedLocationFields)
+             )) &&
+             (!('serverTimestamp' in data) || data.serverTimestamp is timestamp);
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "zakariibrahimf@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                    (!('uid' in resource.data) || request.resource.data.uid == resource.data.uid);
+    }
+
+    match /emergency_alerts/{alertId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAuthenticated() && isValidAlert(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

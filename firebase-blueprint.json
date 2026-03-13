@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Pilgrim profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "fullName": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "nationality": { "type": "string" },
+        "passportNumber": { "type": "string" },
+        "passportUrl": { "type": "string" },
+        "language": { "type": "string", "enum": ["en", "ha", "tw", "ar", "fr"] },
+        "prayerSettings": {
+          "type": "object",
+          "properties": {
+            "fajr": { "$ref": "PrayerReminder" },
+            "dhuhr": { "$ref": "PrayerReminder" },
+            "asr": { "$ref": "PrayerReminder" },
+            "maghrib": { "$ref": "PrayerReminder" },
+            "isha": { "$ref": "PrayerReminder" },
+            "calculationMethod": { "type": "string" }
+          }
+        },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fullName", "phoneNumber"]
+    },
+    "PrayerReminder": {
+      "title": "Prayer Reminder",
+      "description": "Settings for a specific prayer reminder",
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "offset": { "type": "number" },
+        "sound": { "type": "string" }
+      },
+      "required": ["enabled", "offset", "sound"]
+    },
+    "EmergencyAlert": {
+      "title": "Emergency Alert",
+      "description": "SOS alerts sent by pilgrims",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" },
+            "accuracy": { "type": "number" },
+            "altitude": { "type": "number" },
+            "altitudeAccuracy": { "type": "number" },
+            "heading": { "type": "number" },
+            "speed": { "type": "number" }
+          }
+        },
+        "status": { "type": "string", "enum": ["pending", "resolved"] }
+      },
+      "required": ["userId", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile collection"
+    },
+    "/emergency_alerts/{alertId}": {
+      "schema": "EmergencyAlert",
+      "description": "Emergency alerts collection"
+    }
+  }
+}

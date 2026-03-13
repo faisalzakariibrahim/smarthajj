@@ -1,0 +1,8 @@
+{
+  "name": "SmartHajj",
+  "description": "A comprehensive mobile companion for Hajj pilgrims featuring ritual guides, AI assistance, digital badges, and emergency SOS.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ]
+}
